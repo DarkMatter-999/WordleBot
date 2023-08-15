@@ -37,10 +37,10 @@ def get_opencv_frame(window):
     return frame
 
 def submit_word(word, window):
-    pyautogui.typewrite(word, interval=0.1)
+    pyautogui.typewrite(word, interval=0.25)
     pyautogui.moveTo(window.left + submit[0]*window.width, window.top + submit[1]*window.height, 0.25)
     pyautogui.click()
-    time.sleep(3)
+    time.sleep(5)
     
 def get_coords(width, height, ratio):
     return (int(ratio[0]*height), int(ratio[1]*width))
@@ -97,6 +97,7 @@ def search_gray(df, gray):
 iter = 0
 curr_word = random.choice(start_words).lower()
 print(curr_word)
+time.sleep(4)
 submit_word(curr_word, window)
 
 frame = get_opencv_frame(window)
@@ -119,8 +120,11 @@ for i in range(iter,5):
             yellow.add(curr_word[rows[i].index(j)])
         
         elif compare_color(frame[coords[1]][coords[0]], (58, 58, 58), 4):
-            gray.add(curr_word[rows[i].index(j)])
+                gray.add(curr_word[rows[i].index(j)])
 
+    gray = gray - {i[0] for i in green}
+    gray = gray - yellow
+    
     if len(green):
         filter = search_green(filter, green)
     if len(yellow):

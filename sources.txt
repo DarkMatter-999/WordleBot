@@ -1,0 +1,1 @@
+https://github.com/steve-kasica/wordle-words/raw/master/wordle.csv

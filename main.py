@@ -4,6 +4,7 @@ import pandas as pd
 import cv2
 import numpy as np
 import random
+import time
 
 dataset = pd.read_csv("wordle.csv")
 start_words = ["React","Adieu","Later","Sired","Tears","Alone","Arise","About","Atone","Irate","Snare","Cream","Paint","Worse","Sauce","Anime","Prowl","Roast","Drape","Media"]
@@ -39,6 +40,7 @@ def submit_word(word, window):
     pyautogui.typewrite(word, interval=0.1)
     pyautogui.moveTo(window.left + submit[0]*window.width, window.top + submit[1]*window.height, 0.25)
     pyautogui.click()
+    time.sleep(3)
     
 def get_coords(width, height, ratio):
     return (int(ratio[0]*height), int(ratio[1]*width))
@@ -57,18 +59,6 @@ frame = cv2.circle(frame, get_coords(width, height, submit), radius=10, color=(2
 
 cv2.imwrite('game.png', frame)
 
-iter = 0
-curr_word = random.choice(start_words).lower()
-curr_word = "snare"
-print(curr_word)
-#submit_word(curr_word, window)
-
-frame = get_opencv_frame(window)
-
-gray = []
-green = []
-yellow = []
-
 def compare_color(realcolor, color, sens):
     color_array = np.array(color)
     
@@ -80,20 +70,82 @@ def compare_color(realcolor, color, sens):
     else:
         return False
 
-for i in range(iter,2):
+def search_green(df, green):
+    string = ["."]*5
+    for i in green:
+        string[i[1]] = i[0]
+
+    string = "".join(string)
+    print(string)
+    return df[df["word"].str.contains(string)]
+
+def search_yellow(df, yellow):
+    string = ""
+
+    for i in yellow:
+        string += "(?=.*" + i +")"
+
+    print(string)
+    return df[df["word"].str.contains(f"^{string}.*$")]
+
+def search_gray(df, gray):
+    string = "".join(gray)
+
+    print(string)
+    return df[df["word"].str.contains(f"^(?!.*[{string}]).*$")]
+
+iter = 0
+curr_word = random.choice(start_words).lower()
+print(curr_word)
+submit_word(curr_word, window)
+
+frame = get_opencv_frame(window)
+
+gray = set()
+green = set()
+yellow = set()
+
+for i in range(iter,5):
+    filter = dataset.copy()
     for j in rows[i]:
         coords = get_coords(width, height, j)
         print(frame[coords[1]][coords[0]])
-        if compare_color(frame[coords[1]][coords[0]], (0, 164, 215), 10):
-            yellow.append(curr_word[rows[i].index(j)])
+        if compare_color(frame[coords[1]][coords[0]], (0, 179, 111), 10):
+            green.add((curr_word[rows[i].index(j)], rows[i].index(j)))
+            if curr_word[rows[i].index(j)] in yellow:
+                yellow.discard(curr_word[rows[i].index(j)]) 
 
-        elif compare_color(frame[coords[1]][coords[0]], (0, 179, 111), 10):
-            green.append((curr_word[rows[i].index(j)], rows[i].index[j]))
+        elif compare_color(frame[coords[1]][coords[0]], (0, 164, 215), 10):
+            yellow.add(curr_word[rows[i].index(j)])
         
         elif compare_color(frame[coords[1]][coords[0]], (58, 58, 58), 4):
-            gray.append(curr_word[rows[i].index(j)])
+            gray.add(curr_word[rows[i].index(j)])
 
+    if len(green):
+        filter = search_green(filter, green)
+    if len(yellow):
+        filter = search_yellow(filter, yellow)
+    if len(gray):
+        filter = search_gray(filter, gray)
 
+    filter.sort_values(by="occurrence", ascending=False, inplace=True)
+    filter.reset_index(inplace = True)
+    filter.drop("index", inplace = True, axis=1)
+
+    if filter.size <= 0:
+        print("Word not found previous was -", curr_word)
+        break
+    if curr_word == filter["word"].iloc[0]:
+        curr_word = filter.sample(n=1)
+    else:
+        curr_word = filter.iloc[0]["word"]
+    print(curr_word)
+    print(yellow, green, gray)
+
+    submit_word(curr_word, window)
+    frame = get_opencv_frame(window)
+
+print(filter.head(20))
 print(yellow, green, gray)
 
 
